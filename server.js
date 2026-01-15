@@ -1,38 +1,23 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import dotenv from "dotenv";
-import shortid from "shortid";
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
 
-dotenv.config();
+const Url = require("./models/Url"); // adjust path if needed
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.error(err));
-
-
-const urlSchema = new mongoose.Schema({
-  longUrl: String,
-  shortCode: String,
-});
-
-const Url = mongoose.model("Url", urlSchema);
-
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.error(err));
 
 app.post("/api/shorten", async (req, res) => {
   const { longUrl } = req.body;
 
-  if (!longUrl) {
-    return res.status(400).json({ error: "Long URL required" });
-  }
-
-  const shortCode = shortid.generate();
+  const shortCode = Math.random().toString(36).substring(2, 8);
 
   const newUrl = new Url({
     longUrl,
@@ -41,24 +26,19 @@ app.post("/api/shorten", async (req, res) => {
 
   await newUrl.save();
 
-  res.json({ shortCode });
+  res.json({
+    shortUrl: `${process.env.BASE_URL}/${shortCode}`,
+  });
 });
 
+/* 🔥 THIS IS THE MISSING PART */
+app.get("/:shortCode", async (req, res) => {
+  const url = await Url.findOne({ shortCode: req.params.shortCode });
 
-app.get("/:code", async (req, res) => {
-  const { code } = req.params;
-
-  const url = await Url.findOne({ shortCode: code });
-
-  if (!url) {
-    return res.status(404).send("URL not found");
-  }
+  if (!url) return res.status(404).send("URL not found");
 
   res.redirect(url.longUrl);
 });
 
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
