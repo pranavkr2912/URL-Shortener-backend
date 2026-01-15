@@ -10,34 +10,41 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ ROOT CHECK (IMPORTANT)
+// Root check
 app.get("/", (req, res) => {
   res.send("URL Shortener Backend is running 🚀");
 });
 
-// ✅ CONNECT DB
+// MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => {
-    console.error("Mongo error:", err);
+    console.error("MongoDB error:", err);
     process.exit(1);
   });
 
-// ✅ API ROUTES
+// API
 app.use("/api", routes);
 
-// ✅ REDIRECT SHORT URL
+// Redirect
 app.get("/:shortCode", async (req, res) => {
-  const Url = mongoose.model("Url");
-  const url = await Url.findOne({ shortCode: req.params.shortCode });
-  if (!url) return res.status(404).send("URL not found");
-  res.redirect(url.longUrl);
+  try {
+    const Url = mongoose.model("Url");
+    const url = await Url.findOne({ shortCode: req.params.shortCode });
+
+    if (!url) return res.status(404).send("URL not found");
+
+    res.redirect(url.longUrl);
+  } catch (err) {
+    console.error("Redirect error:", err);
+    res.status(500).send("Server error");
+  }
 });
 
-// ✅ START SERVER
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
