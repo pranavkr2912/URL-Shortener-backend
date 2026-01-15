@@ -2,36 +2,40 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
-// ✅ Inline model (NO separate models folder needed)
-const UrlSchema = new mongoose.Schema({
-  longUrl: String,
-  shortCode: String,
-});
+// Prevent model overwrite on hot reload
+const Url =
+  mongoose.models.Url ||
+  mongoose.model(
+    "Url",
+    new mongoose.Schema({
+      longUrl: { type: String, required: true },
+      shortCode: { type: String, required: true },
+    })
+  );
 
-const Url = mongoose.model("Url", UrlSchema);
-
-// ✅ CREATE SHORT URL
+// POST /api/shorten
 router.post("/shorten", async (req, res) => {
   try {
     const { longUrl } = req.body;
+
     if (!longUrl) {
-      return res.status(400).json({ error: "Long URL required" });
+      return res.status(400).json({ error: "Long URL is required" });
     }
 
     const shortCode = Math.random().toString(36).substring(2, 8);
 
-    const url = new Url({ longUrl, shortCode });
-    await url.save();
+    await Url.create({ longUrl, shortCode });
 
     res.json({
       shortUrl: `${process.env.BASE_URL}/${shortCode}`,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    console.error("Shorten error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 module.exports = router;
+
 
 
