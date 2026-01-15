@@ -1,27 +1,64 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-require("dotenv").config();
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+import shortid from "shortid";
+
+dotenv.config();
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
 
-const urlRoutes = require("./routes");
-app.use("/api", urlRoutes);
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.error(err));
 
 
-app.get("/", (req, res) => {
-  res.send("Backend is running");
+const urlSchema = new mongoose.Schema({
+  longUrl: String,
+  shortCode: String,
+});
+
+const Url = mongoose.model("Url", urlSchema);
+
+
+app.post("/api/shorten", async (req, res) => {
+  const { longUrl } = req.body;
+
+  if (!longUrl) {
+    return res.status(400).json({ error: "Long URL required" });
+  }
+
+  const shortCode = shortid.generate();
+
+  const newUrl = new Url({
+    longUrl,
+    shortCode,
+  });
+
+  await newUrl.save();
+
+  res.json({ shortCode });
 });
 
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error(err));
+app.get("/:code", async (req, res) => {
+  const { code } = req.params;
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  const url = await Url.findOne({ shortCode: code });
+
+  if (!url) {
+    return res.status(404).send("URL not found");
+  }
+
+  res.redirect(url.longUrl);
+});
+
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
